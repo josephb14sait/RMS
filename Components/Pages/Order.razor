@@ -1,0 +1,133 @@
+﻿@page "/order"
+@using RMS.Data
+@inject RMS.Data.OrderService OrderService
+
+<h3>Online Food Order</h3>
+
+@*Divs to create user input*@
+
+<div class="form-group">
+    <label for="customerName">Customer Name</label>
+    <InputText id="customerName" class="form-control" @bind-Value="customerName" />
+</div>
+
+<h4>Menu</h4>
+@*Foreach loop creates selectable options for user to pick*@
+<div class="form-group">
+    <label for="menuItems">Select Items</label>
+
+    @foreach (var item in menuItems)
+    {
+        <div class="form-group">
+            <label>@item.ItemName - @item.Price.ToString("C")</label>
+            <div class="input-group">
+                <select @bind="item.SelectedItem" class="form-control">
+                    <option value="">Select an item</option>
+                    @foreach (var menu in allMenuItems)
+                    {
+                        <option value="@menu.ItemNumber">@menu.ItemName</option>
+                    }
+                </select>
+                <InputNumber @bind-Value="item.Quantity" class="form-control" min="0" placeholder="Quantity" />
+            </div>
+        </div>
+    }
+</div>
+
+<button type="button" class="btn btn-primary" @onclick="HandleSubmit">Submit Order</button>
+
+<h4>Current Orders</h4>
+@*Lists a successful order from name and selection*@
+<ul class="list-group">
+    @foreach (var order in orders)
+    {
+        <li class="list-group-item">
+        <strong>@order.CustomerName</strong><br />
+        Items:<br />
+        @foreach (var item in order.Items)
+        {
+            <div>@item.MenuItem.ItemName - Quantity: @item.Quantity</div>
+        }
+        </li>
+    }
+</ul>
+
+@code {
+    @*Declaring variable and list*@
+    private string? customerName;
+    private List<MenuItem> menuItems = new List<MenuItem>
+    {
+        new MenuItem { ItemNumber = 1, ItemName = "Burger", Price = 5.99m },
+        new MenuItem { ItemNumber = 2, ItemName = "Pizza", Price = 8.99m },
+        new MenuItem { ItemNumber = 3, ItemName = "Salad", Price = 4.99m }
+    };
+
+    private List<MenuItem> allMenuItems = new List<MenuItem>();
+    private List<CusOrder> orders = new List<CusOrder>();
+
+    //allmenuitem gets declared and orders declared from orderservice.cs on initialization
+    protected override void OnInitialized()
+    {
+        allMenuItems = menuItems;
+        orders = OrderService.GetOrders().ToList();
+    }
+
+    //checking for exceptions and creating orders once submit button is pressed
+    private void HandleSubmit()
+    {
+        try
+        {
+            if (string.IsNullOrEmpty(customerName))
+            {
+                throw new InvalidOperationException("Customer name is a required field.");
+            }
+
+            var selectedItems = new List<OrderItem>();
+            //foreach loop checks if item is selected and has a quantity above zero before passing to selected items
+            foreach (var item in menuItems)
+            {
+                if (item.SelectedItem != null && item.Quantity > 0)
+                {
+                    var menuItem = allMenuItems.First(men => men.ItemNumber == item.SelectedItem);
+                    selectedItems.Add(new OrderItem { MenuItem = menuItem, Quantity = item.Quantity });
+                }
+            }
+
+            if (!selectedItems.Any())
+            {
+                throw new InvalidOperationException("Selection is a required field");
+            }
+
+            //creates order from name and selected items from above
+            var order = new CusOrder
+                {
+                    CustomerName = customerName,
+                    Items = selectedItems
+                };
+
+            OrderService.AddOrder(order);
+            orders = OrderService.GetOrders().ToList();
+
+            // Clear input fields
+            customerName = string.Empty;
+            foreach (var item in menuItems)
+            {
+                item.SelectedItem = null;
+                item.Quantity = 0;
+            }
+        }
+        catch (Exception ex)
+        {
+            Application.Current.MainPage.DisplayAlert("Error", ex.Message, "OK");
+        }
+    }
+}
+
+
+
+
+
+
+
+
+

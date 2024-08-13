@@ -1,0 +1,91 @@
+﻿@page "/menu"
+@using RMS.Data
+@inject RMS.Data.MenuService MenuService
+
+<h3>Manage Menu</h3>
+
+@*Divs to create user input*@
+
+<div class="form-group">
+    <label for="itemName">Item Name</label>
+    <InputText id="itemName" class="form-control" @bind-Value="newItemName" />
+</div>
+
+<div class="form-group">
+    <label for="itemPrice">Item Price</label>
+    <InputNumber id="itemPrice" class="form-control" @bind-Value="newItemPrice" />
+</div>
+
+<button type="button" class="btn btn-primary" @onclick="AddMenuItem">Add Menu Item</button>
+
+<h4>Current Menu Items</h4>
+@*List made through foreach loop for when menu items are added*@
+<ul class="list-group">
+    @foreach (var item in menuItems)
+    {
+        <li class="list-group-item">
+            <strong>@item.ItemName</strong> - @item.Price.ToString("C")
+            <button class="btn btn-danger btn-sm float-end" @onclick="() => RemoveMenuItem(item.ItemNumber)">Remove</button>
+        </li>
+    }
+</ul>
+
+@code {
+    //declaring variables and lists
+    private string newItemName = string.Empty;
+    private decimal newItemPrice;
+    private List<MenuItem> menuItems = new List<MenuItem>();
+
+    //Menu items are added to list from menuservice.cs on initialization
+    protected override void OnInitialized()
+    {
+        menuItems = MenuService.GetMenuItems().ToList();
+    }
+
+    //adding menu items and checking for exceptions
+    private void AddMenuItem()
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(newItemName))
+            {
+                throw new InvalidOperationException("Name of the menu item is required");
+            }
+
+            if (newItemPrice <= 0)
+            {
+                throw new InvalidOperationException("Enter a proper number");
+            }
+
+            //declares itemname and price from user input
+            if (!string.IsNullOrWhiteSpace(newItemName) && newItemPrice > 0)
+            {
+                var newMenuItem = new MenuItem
+                    {
+                        ItemName = newItemName,
+                        Price = newItemPrice
+                    };
+
+                MenuService.AddMenuItem(newMenuItem);
+                menuItems = MenuService.GetMenuItems().ToList(); // Refresh the menu items
+
+                // Clear input fields
+                newItemName = string.Empty;
+                newItemPrice = 0;
+            }
+
+        }
+        //displays error message if error occurs
+        catch(Exception ex)
+        {
+            Application.Current.MainPage.DisplayAlert("Error", ex.Message, "OK");
+        }
+    }
+
+    //removes menu items and then refreshes the menu
+    private void RemoveMenuItem(int itemNumber)
+    {
+        MenuService.RemoveMenuItem(itemNumber);
+        menuItems = MenuService.GetMenuItems().ToList();
+    }
+}
